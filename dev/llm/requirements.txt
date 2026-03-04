@@ -1,0 +1,17 @@
+# Core
+sqlalchemy==2.0.25
+psycopg2-binary==2.9.9
+
+# Pydantic
+pydantic==2.5.3
+pydantic-settings==2.1.0
+
+# RabbitMQ
+aio-pika==9.4.0
+
+# Ollama client
+ollama==0.4.4
+httpx==0.26.0
+
+# Utils
+python-dotenv==1.0.0

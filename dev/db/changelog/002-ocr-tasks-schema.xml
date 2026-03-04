@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.24.xsd">
+
+    <changeSet id="007-add-ocr-llm-fields-to-certificates" author="developer">
+        <addColumn tableName="certificates">
+            <column name="ocr_confidence_score" type="integer">
+                <constraints nullable="true"/>
+            </column>
+            <column name="ocr_page_count" type="integer" defaultValueNumeric="1">
+                <constraints nullable="false"/>
+            </column>
+            <column name="ocr_processing_time_ms" type="integer">
+                <constraints nullable="true"/>
+            </column>
+            <column name="sent_to_llm" type="boolean" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="008-add-structured-data-column" author="developer">
+        <addColumn tableName="certificates">
+            <column name="structured_data" type="jsonb">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="009-update-certificate-status-enum" author="developer">
+        <sql>
+            DO $$ BEGIN
+                ALTER TYPE certificate_status ADD VALUE IF NOT EXISTS 'ocr_processing';
+                ALTER TYPE certificate_status ADD VALUE IF NOT EXISTS 'ocr_completed';
+                ALTER TYPE certificate_status ADD VALUE IF NOT EXISTS 'ocr_error';
+                ALTER TYPE certificate_status ADD VALUE IF NOT EXISTS 'llm_processing';
+            EXCEPTION
+                WHEN duplicate_object THEN null;
+            END $$;
+        </sql>
+    </changeSet>
+
+    <changeSet id="010-add-certificates-indexes" author="developer">
+        <createIndex tableName="certificates" indexName="idx_certificates_sent_to_llm">
+            <column name="sent_to_llm"/>
+        </createIndex>
+        <createIndex tableName="certificates" indexName="idx_certificates_status_completed" ifNotExists="true">
+            <column name="status"/>
+            <column name="completed_at" descending="true"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>
