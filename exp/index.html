@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OCR Сертификатов - Обработка документов</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-color: #4f46e5;
+            --primary-hover: #4338ca;
+            --success-color: #10b981;
+            --warning-color: #f59e0b;
+            --error-color: #ef4444;
+            --bg-color: #f3f4f6;
+            --card-bg: #ffffff;
+            --text-primary: #1f2937;
+            --text-secondary: #6b7280;
+            --border-color: #e5e7eb;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            color: white;
+            margin-bottom: 2rem;
+        }
+
+        header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        /* Upload Section */
+        .upload-section {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 1rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+
+        .upload-zone {
+            border: 3px dashed var(--border-color);
+            border-radius: 12px;
+            padding: 2rem;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .upload-zone:hover,
+        .upload-zone.dragover {
+            border-color: var(--primary-color);
+            background: #f5f3ff;
+        }
+
+        .upload-zone svg {
+            width: 64px;
+            height: 64px;
+            color: var(--primary-color);
+            margin-bottom: 1rem;
+        }
+
+        .upload-zone h3 {
+            color: var(--text-primary);
+            margin-bottom: 0.5rem;
+        }
+
+        .upload-zone p {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .upload-zone input[type="file"] {
+            display: none;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-primary {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-hover);
+            transform: translateY(-2px);
+        }
+
+        .btn-success {
+            background: var(--success-color);
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #059669;
+        }
+
+        /* Status Badge */
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+
+        .status-pending {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .status-ocr-processing {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .status-ocr-completed {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .status-completed {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .status-error {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        /* Results Section */
+        .results-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        @media (max-width: 1024px) {
+            .results-section {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Image Card */
+        .image-card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+
+        .image-card-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .image-card-header h3 {
+            color: var(--text-primary);
+            font-size: 1.25rem;
+        }
+
+        .image-card-body {
+            padding: 1.5rem;
+        }
+
+        .image-preview {
+            width: 100%;
+            max-height: 500px;
+            object-fit: contain;
+            border-radius: 8px;
+            background: #f9fafb;
+        }
+
+        /* Data Card */
+        .data-card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+
+        .data-card-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .data-card-header h3 {
+            color: var(--text-primary);
+            font-size: 1.25rem;
+        }
+
+        .data-card-body {
+            padding: 1.5rem;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        /* JSON Viewer */
+        .json-viewer {
+            background: #1f2937;
+            color: #10b981;
+            padding: 1.5rem;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.875rem;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        /* Data Fields */
+        .data-section {
+            margin-bottom: 1.5rem;
+        }
+
+        .data-section h4 {
+            color: var(--primary-color);
+            font-size: 1rem;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        .data-field {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 0.75rem;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .data-field:last-child {
+            border-bottom: none;
+        }
+
+        .data-label {
+            color: var(--text-secondary);
+            font-weight: 500;
+            font-size: 0.875rem;
+        }
+
+        .data-value {
+            color: var(--text-primary);
+            font-size: 0.875rem;
+        }
+
+        .data-value.null {
+            color: var(--text-secondary);
+            font-style: italic;
+        }
+
+        /* Progress Bar */
+        .progress-section {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+
+        .progress-steps {
+            display: flex;
+            justify-content: space-between;
+            position: relative;
+            margin-bottom: 2rem;
+        }
+
+        .progress-steps::before {
+            content: '';
+            position: absolute;
+            top: 20px;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: var(--border-color);
+            z-index: 1;
+        }
+
+        .progress-step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            z-index: 2;
+        }
+
+        .progress-step.completed .step-circle {
+            background: var(--success-color);
+            border-color: var(--success-color);
+        }
+
+        .progress-step.active .step-circle {
+            background: var(--primary-color);
+            border-color: var(--primary-color);
+            animation: pulse 2s infinite;
+        }
+
+        .step-circle {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            border: 4px solid var(--border-color);
+            background: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .progress-step.completed .step-circle {
+            color: white;
+        }
+
+        .step-label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            text-align: center;
+        }
+
+        .progress-step.active .step-label {
+            color: var(--primary-color);
+            font-weight: 600;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                box-shadow: 0 0 0 0 rgba(79, 70, 229, 0.4);
+            }
+            50% {
+                box-shadow: 0 0 0 10px rgba(79, 70, 229, 0);
+            }
+        }
+
+        /* Loading Spinner */
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Confidence Badge */
+        .confidence-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .confidence-high {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .confidence-medium {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .confidence-low {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        /* Tags */
+        .tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .tag {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.25rem 0.75rem;
+            background: #e0e7ff;
+            color: #3730a3;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: var(--text-secondary);
+        }
+
+        .empty-state svg {
+            width: 80px;
+            height: 80px;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+
+        /* Alert */
+        .alert {
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+
+        .alert-warning {
+            background: #fef3c7;
+            color: #92400e;
+            border-left: 4px solid #f59e0b;
+        }
+
+        .alert-error {
+            background: #fee2e2;
+            color: #991b1b;
+            border-left: 4px solid #ef4444;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h2>Автоматическое распознавание и структурирование данных из дипломов и грамот</h2>
+        </header>
+
+        <!-- Upload Section -->
+        <section class="upload-section">
+            <div class="upload-zone" id="uploadZone">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                </svg>
+                <h3>Перетащите файл сюда</h3>
+                <p>или нажмите для выбора файла (JPG, PNG, PDF)</p>
+                <input type="file" id="fileInput" accept="image/*,application/pdf">
+                <button class="btn btn-primary" style="margin-top: 1rem;" onclick="document.getElementById('fileInput').click()">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+                    </svg>
+                    Выбрать файл
+                </button>
+            </div>
+        </section>
+
+        <!-- Progress Section -->
+        <section class="progress-section" id="progressSection" style="display: none;">
+            <div class="progress-steps">
+                <div class="progress-step completed" id="step1">
+                    <div class="step-circle">✓</div>
+                    <div class="step-label">Загрузка</div>
+                </div>
+                <div class="progress-step active" id="step2">
+                    <div class="step-circle">2</div>
+                    <div class="step-label">OCR Обработка</div>
+                </div>
+                <div class="progress-step" id="step3">
+                    <div class="step-circle">3</div>
+                    <div class="step-label">LLM Структурирование</div>
+                </div>
+                <div class="progress-step" id="step4">
+                    <div class="step-circle">4</div>
+                    <div class="step-label">Готово</div>
+                </div>
+            </div>
+            <div style="text-align: center;">
+                <span class="status-badge status-ocr-processing">
+                    <span class="spinner"></span>
+                    Обработка документа...
+                </span>
+            </div>
+        </section>
+
+        <!-- Results Section -->
+        <section class="results-section" id="resultsSection" style="display: none;">
+            <!-- Image Card -->
+            <div class="image-card">
+                <div class="image-card-header">
+                    <h3>Исходный документ</h3>
+                    <span class="status-badge status-completed">Обработано</span>
+                </div>
+                <div class="image-card-body">
+                    <img src="test_1.jpg" alt="Сертификат" class="image-preview" id="imagePreview">
+                    <div style="margin-top: 1rem; display: flex; gap: 1rem;">
+                        <button class="btn btn-primary" onclick="downloadJSON()">
+                            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                            </svg>
+                            Скачать JSON
+                        </button>
+                        <button class="btn btn-success" onclick="location.reload()">
+                            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                            </svg>
+                            Загрузить ещё
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Data Card -->
+            <div class="data-card">
+                <div class="data-card-header">
+                    <h3>📊 Структурированные данные</h3>
+                    <span class="confidence-badge confidence-high">Точность: 95%</span>
+                </div>
+                <div class="data-card-body">
+                    <!-- Personal Data -->
+                    <div class="data-section">
+                        <h4>👤 Личные данные</h4>
+                        <div class="data-field">
+                            <span class="data-label">ФИО</span>
+                            <span class="data-value" id="fullName">Сальков Михаил Сергеевич</span>
+                        </div>
+                        <div class="data-field">
+                            <span class="data-label">Учебное заведение</span>
+                            <span class="data-value" id="university">ЮУрГУ</span>
+                        </div>
+                        <div class="data-field">
+                            <span class="data-label">Факультет</span>
+                            <span class="data-value" id="faculty">Факультет Экономики</span>
+                        </div>
+                        <div class="data-field">
+                            <span class="data-label">Курс</span>
+                            <span class="data-value" id="course">3 курс</span>
+                        </div>
+                        <div class="data-field">
+                            <span class="data-label">Группа</span>
+                            <span class="data-value" id="group">СГ-306</span>
+                        </div>
+                    </div>
+
+                    <!-- Document Info -->
+                    <div class="data-section">
+                        <h4>📜 Информация о документе</h4>
+                        <div class="data-field">
+                            <span class="data-label">Тип документа</span>
+                            <span class="data-value" id="docType">Сертификат</span>
+                        </div>
+                        <div class="data-field">
+                            <span class="data-label">Номер</span>
+                            <span class="data-value" id="docNumber">№PS-D2e-012</span>
+                        </div>
+                        <div class="data-field">
+                            <span class="data-label">Дата выдачи</span>
+                            <span class="data-value" id="issueDate">2017-09-19</span>
+                        </div>
+                        <div class="data-field">
+                            <span class="data-label">Город</span>
+                            <span class="data-value" id="city">Челябинск</span>
+                        </div>
+                    </div>
+
+                    <!-- Event Info -->
+                    <div class="data-section">
+                        <h4>🎯 Мероприятие</h4>
+                        <div class="data-field">
+                            <span class="data-label">Название</span>
+                            <span class="data-value" id="eventName">Distributed Cloud Computing. Big Data processing methods</span>
+                        </div>
+                        <div class="data-field">
+                            <span class="data-label">Тип</span>
+                            <span class="data-value" id="eventType">воркшоп</span>
+                        </div>
+                        <div class="data-field">
+                            <span class="data-label">Организатор</span>
+                            <span class="data-value" id="primaryOrg">ЮУрГУ</span>
+                        </div>
+                    </div>
+
+                    <!-- Metadata -->
+                    <div class="data-section">
+                        <h4>ℹ️ Метаданные</h4>
+                        <div class="data-field">
+                            <span class="data-label">Язык документа</span>
+                            <span class="data-value" id="language">mixed</span>
+                        </div>
+                        <div class="data-field">
+                            <span class="data-label">Качество OCR</span>
+                            <span class="data-value" id="ocrQuality">high</span>
+                        </div>
+                        <div class="data-field">
+                            <span class="data-label">Требует проверки</span>
+                            <span class="data-value" id="needsReview">Нет</span>
+                        </div>
+                    </div>
+
+                    <!-- JSON Viewer -->
+                    <div class="data-section">
+                        <h4>🔧 Raw JSON</h4>
+                        <div class="json-viewer" id="jsonViewer"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Empty State -->
+        <div class="empty-state" id="emptyState">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+            </svg>
+            <h3>Нет данных для отображения</h3>
+            <p>Загрузите изображение сертификата для начала обработки</p>
+        </div>
+    </div>
+
+    <script>
+        // Пример данных (в реальности будут приходить с бэкенда)
+        const sampleData = {
+            personal_data: {
+                full_name: "Сальков Михаил Сергеевич",
+                full_name_raw: "Салькову Михаилу Сергеевичу",
+                is_team: false,
+                team_name: null,
+                team_members: [],
+                course: "3 курс",
+                group: "СГ-306",
+                university: "ЮУрГУ",
+                faculty: "Факультет Экономики",
+                educational_level: "бакалавриат"
+            },
+            document_info: {
+                doc_type: "сертификат",
+                doc_number: "№PS-D2e-012",
+                doc_degree: null,
+                issue_date: "2017-09-19",
+                year: 2017,
+                city: "Челябинск",
+                country: "Россия",
+                language: "mixed"
+            },
+            event_info: {
+                event_name: "Distributed Cloud Computing. Big Data processing methods",
+                event_type: "воркшоп",
+                event_level: "всероссийский",
+                edition: null,
+                nomination: null,
+                section: null,
+                direction: "Big Data"
+            },
+            achievement: {
+                has_place: false,
+                place_number: null,
+                place_text: null,
+                degree: null,
+                prize_name: null,
+                result_details: null,
+                category: null,
+                is_participant_only: true
+            },
+            organization: {
+                primary_org: "ЮУрГУ",
+                partner_orgs: [],
+                sponsors: [],
+                university_org: "ЮУрГУ"
+            },
+            signatories: [
+                {
+                    position: "Декан",
+                    name: "Радченко Глеб Валерьевич",
+                    degree: "д-р ист. наук",
+                    signature_present: true
+                }
+            ],
+            metadata: {
+                needs_review: false,
+                review_reason: null,
+                confidence: 0.95,
+                ocr_quality: "high",
+                ocr_issues: [],
+                extraction_notes: "Обработка завершена успешно"
+            }
+        };
+
+        // Инициализация
+        document.addEventListener('DOMContentLoaded', () => {
+            const uploadZone = document.getElementById('uploadZone');
+            const fileInput = document.getElementById('fileInput');
+
+            // Drag & Drop
+            uploadZone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadZone.classList.add('dragover');
+            });
+
+            uploadZone.addEventListener('dragleave', () => {
+                uploadZone.classList.remove('dragover');
+            });
+
+            uploadZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadZone.classList.remove('dragover');
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    handleFile(files[0]);
+                }
+            });
+
+            fileInput.addEventListener('change', (e) => {
+                if (e.target.files.length > 0) {
+                    handleFile(e.target.files[0]);
+                }
+            });
+        });
+
+        function handleFile(file) {
+            // Показать прогресс
+            document.getElementById('progressSection').style.display = 'block';
+            document.getElementById('emptyState').style.display = 'none';
+
+            // Чтение файла
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                //document.getElementById('imagePreview').src = e.target.result;
+                
+                // Симуляция обработки
+                setTimeout(() => {
+                    showResults();
+                }, 3000);
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function showResults() {
+            document.getElementById('progressSection').style.display = 'none';
+            document.getElementById('resultsSection').style.display = 'grid';
+
+            // Заполнение данных
+            document.getElementById('fullName').textContent = sampleData.personal_data.full_name;
+            document.getElementById('university').textContent = sampleData.personal_data.university;
+            document.getElementById('faculty').textContent = sampleData.personal_data.faculty;
+            document.getElementById('course').textContent = sampleData.personal_data.course;
+            document.getElementById('group').textContent = sampleData.personal_data.group;
+
+            document.getElementById('docType').textContent = sampleData.document_info.doc_type;
+            document.getElementById('docNumber').textContent = sampleData.document_info.doc_number;
+            document.getElementById('issueDate').textContent = sampleData.document_info.issue_date;
+            document.getElementById('city').textContent = sampleData.document_info.city;
+
+            document.getElementById('eventName').textContent = sampleData.event_info.event_name;
+            document.getElementById('eventType').textContent = sampleData.event_info.event_type;
+            document.getElementById('primaryOrg').textContent = sampleData.organization.primary_org;
+
+            document.getElementById('language').textContent = sampleData.metadata.language;
+            document.getElementById('ocrQuality').textContent = sampleData.metadata.ocr_quality;
+            document.getElementById('needsReview').textContent = sampleData.metadata.needs_review ? 'Да' : 'Нет';
+
+            // JSON Viewer
+            document.getElementById('jsonViewer').textContent = JSON.stringify(sampleData, null, 2);
+
+            // Обновление прогресса
+            document.querySelectorAll('.progress-step').forEach((step, index) => {
+                if (index < 4) {
+                    step.classList.add('completed');
+                    step.classList.remove('active');
+                    step.querySelector('.step-circle').textContent = '✓';
+                }
+            });
+        }
+
+        function downloadJSON() {
+            const blob = new Blob([JSON.stringify(sampleData, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'certificate_data.json';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+    </script>
+</body>
+</html>
