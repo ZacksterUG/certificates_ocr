@@ -1,74 +1,6 @@
 version: '3.8'
 
 services:
-  # OCR Microservice
-  ocr-service:
-    build:
-      context: ./ocr
-      dockerfile: Dockerfile
-    container_name: ocr-service
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_HOST: postgres
-      POSTGRES_PORT: 5432
-      POSTGRES_DB: certificates
-      RABBITMQ_HOST: rabbitmq
-      RABBITMQ_PORT: 5672
-      RABBITMQ_USER: guest
-      RABBITMQ_PASSWORD: guest
-      OCR_QUEUE: ocr_tasks
-      LLM_QUEUE: llm_tasks
-      MODEL_PATH: /app/models/PaddleOCR-VL-1.5
-      MODEL_NAME: PaddlePaddle/PaddleOCR-VL-1.5
-      DEVICE: cpu
-      MAX_NEW_TOKENS: "512"
-      PREFETCH_COUNT: "1"
-      DEBUG: "false"
-    depends_on:
-      postgres:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-    networks:
-      - app_network
-    volumes:
-      - ocr_uploads:/tmp/ocr_uploads
-      - ./datasets:/app/datasets:ro
-      - ./models:/app/models:ro
-
-  # LLM Service
-  llm-service:
-    build:
-      context: ./llm
-      dockerfile: Dockerfile
-    container_name: llm-service
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_HOST: postgres
-      POSTGRES_PORT: 5432
-      POSTGRES_DB: certificates
-      RABBITMQ_HOST: rabbitmq
-      RABBITMQ_PORT: 5672
-      RABBITMQ_USER: guest
-      RABBITMQ_PASSWORD: guest
-      LLM_QUEUE: llm_tasks
-      OLLAMA_HOST: http://host.docker.internal:11434
-      OLLAMA_MODEL: llama3.2
-      OLLAMA_TIMEOUT: "120"
-      PREFETCH_COUNT: "1"
-      DEBUG: "false"
-    depends_on:
-      postgres:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-    networks:
-      - app_network
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-
   # Liquibase migrations
   migrations:
     build:
@@ -100,17 +32,6 @@ services:
     networks:
       - app_network
 
-  redis:
-    image: redis:7-alpine
-    container_name: redis
-    ports:
-      - "6379:6379"
-    command: redis-server --appendonly yes
-    volumes:
-      - redis_data:/data
-    networks:
-      - app_network
-
   postgres:
     image: postgres:16-alpine
     container_name: postgres
@@ -132,7 +53,6 @@ services:
 
 volumes:
   rabbitmq_data:
-  redis_data:
   postgres_data:
   ocr_uploads:
 

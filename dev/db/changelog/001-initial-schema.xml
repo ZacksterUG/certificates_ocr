@@ -6,116 +6,27 @@
                             http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.24.xsd">
 
     <changeSet id="001-create-extensions" author="developer">
-        <sql>
-            CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-        </sql>
+        <sqlFile path="changelog/001-create-extensions.sql" splitStatements="false"/>
     </changeSet>
 
     <changeSet id="002-create-certificates-table" author="developer">
-        <createTable tableName="certificates">
-            <column name="id" type="uuid">
-                <constraints primaryKey="true" nullable="false"/>
-            </column>
-            <column name="image_data" type="bytea">
-                <constraints nullable="false"/>
-            </column>
-            <column name="image_filename" type="varchar(255)">
-                <constraints nullable="false"/>
-            </column>
-            <column name="image_mime_type" type="varchar(50)">
-                <constraints nullable="false"/>
-            </column>
-            <column name="image_size_bytes" type="bigint">
-                <constraints nullable="false"/>
-            </column>
-            <column name="raw_text" type="text">
-                <constraints nullable="true"/>
-            </column>
-            <column name="structured_data" type="jsonb">
-                <constraints nullable="true"/>
-            </column>
-            <column name="status" type="varchar(50)">
-                <constraints nullable="false"/>
-            </column>
-            <column name="error_message" type="text">
-                <constraints nullable="true"/>
-            </column>
-            <column name="student_id" type="varchar(100)">
-                <constraints nullable="true"/>
-            </column>
-            <column name="created_at" type="timestamp with time zone" defaultValueComputed="CURRENT_TIMESTAMP">
-                <constraints nullable="false"/>
-            </column>
-            <column name="updated_at" type="timestamp with time zone" defaultValueComputed="CURRENT_TIMESTAMP">
-                <constraints nullable="false"/>
-            </column>
-            <column name="completed_at" type="timestamp with time zone">
-                <constraints nullable="true"/>
-            </column>
-        </createTable>
+        <sqlFile path="changelog/002-create-certificates-table.sql" splitStatements="false"/>
     </changeSet>
 
     <changeSet id="003-create-certificates-indexes" author="developer">
-        <createIndex tableName="certificates" indexName="idx_certificates_status">
-            <column name="status"/>
-        </createIndex>
-        <createIndex tableName="certificates" indexName="idx_certificates_created_at">
-            <column name="created_at" descending="true"/>
-        </createIndex>
-        <createIndex tableName="certificates" indexName="idx_certificates_student_id">
-            <column name="student_id"/>
-        </createIndex>
-        <createIndex tableName="certificates" indexName="idx_certificates_status_created">
-            <column name="status"/>
-            <column name="created_at" descending="true"/>
-        </createIndex>
+        <sqlFile path="changelog/003-create-certificates-indexes.sql" splitStatements="false"/>
     </changeSet>
 
     <changeSet id="004-create-status-enum" author="developer">
-        <sql>
-            DO $$ BEGIN
-                CREATE TYPE certificate_status AS ENUM (
-                    'pending',
-                    'ocr_processing',
-                    'ocr_completed',
-                    'ocr_error',
-                    'llm_processing',
-                    'completed',
-                    'error'
-                );
-            EXCEPTION
-                WHEN duplicate_object THEN null;
-            END $$;
-        </sql>
+        <sqlFile path="changelog/004-create-status-enum.sql" splitStatements="false"/>
     </changeSet>
 
     <changeSet id="005-alter-certificates-status-type" author="developer">
-        <sql>
-            ALTER TABLE certificates 
-            ALTER COLUMN status TYPE certificate_status 
-            USING status::certificate_status;
-        </sql>
+        <sqlFile path="changelog/005-alter-certificates-status-type.sql" splitStatements="false"/>
     </changeSet>
 
     <changeSet id="006-create-update-trigger" author="developer">
-        <sql>
-            CREATE OR REPLACE FUNCTION update_updated_at_column()
-            RETURNS TRIGGER AS $$
-            BEGIN
-                NEW.updated_at = CURRENT_TIMESTAMP;
-                IF NEW.status IN ('completed', 'error') AND OLD.status NOT IN ('completed', 'error') THEN
-                    NEW.completed_at = CURRENT_TIMESTAMP;
-                END IF;
-                RETURN NEW;
-            END;
-            $$ LANGUAGE plpgsql;
-        </sql>
-        <sql>
-            CREATE TRIGGER update_certificates_updated_at
-                BEFORE UPDATE ON certificates
-                FOR EACH ROW
-                EXECUTE FUNCTION update_updated_at_column();
-        </sql>
+        <sqlFile path="changelog/006-create-update-trigger.sql" splitStatements="false"/>
     </changeSet>
 
 </databaseChangeLog>
