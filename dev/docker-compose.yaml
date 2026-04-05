@@ -1,6 +1,19 @@
 version: '3.8'
 
 services:
+  # Frontend (Nginx)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - app_network
+
   # Backend API
   backend:
     build:

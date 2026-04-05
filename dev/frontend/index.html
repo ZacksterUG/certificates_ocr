@@ -1,0 +1,1034 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OCR Сертификатов — Обработка документов</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-color: #4f46e5;
+            --primary-hover: #4338ca;
+            --success-color: #10b981;
+            --warning-color: #f59e0b;
+            --error-color: #ef4444;
+            --bg-color: #f3f4f6;
+            --card-bg: #ffffff;
+            --text-primary: #1f2937;
+            --text-secondary: #6b7280;
+            --border-color: #e5e7eb;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            color: white;
+            margin-bottom: 2rem;
+        }
+
+        header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+            color: #fff;
+        }
+
+        header p {
+            font-size: 1.1rem;
+            opacity: 0.95;
+            color: #f0f0f0;
+        }
+
+        /* Upload Section */
+        .upload-section {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 1rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+
+        .upload-zone {
+            border: 2px dashed var(--border-color);
+            border-radius: 12px;
+            padding: 1.5rem;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .upload-zone:hover,
+        .upload-zone.dragover {
+            border-color: var(--primary-color);
+            background: #f5f3ff;
+        }
+
+        .upload-zone svg {
+            width: 48px;
+            height: 48px;
+            color: var(--primary-color);
+            margin-bottom: 0.75rem;
+        }
+
+        .upload-zone h3 {
+            color: var(--text-primary);
+            margin-bottom: 0.25rem;
+            font-size: 1.1rem;
+        }
+
+        .upload-zone p {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+        }
+
+        .upload-zone input[type="file"] {
+            display: none;
+        }
+
+        .btn-upload {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1.25rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .btn-upload:hover:not(:disabled) {
+            background: var(--primary-hover);
+            transform: translateY(-1px);
+        }
+
+        .btn-upload svg {
+            width: 18px;
+            height: 18px;
+            stroke: white;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-primary {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: var(--primary-hover);
+            transform: translateY(-2px);
+        }
+
+        .btn-success {
+            background: var(--success-color);
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #059669;
+        }
+
+        /* Status Badge */
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+
+        .status-pending {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .status-ocr-processing {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .status-ocr-completed {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .status-completed {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .status-error {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        /* Results Section */
+        .results-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        @media (max-width: 1024px) {
+            .results-section {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Image Card */
+        .image-card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+
+        .image-card-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .image-card-header h3 {
+            color: var(--text-primary);
+            font-size: 1.25rem;
+        }
+
+        .image-card-body {
+            padding: 1.5rem;
+        }
+
+        .image-preview {
+            width: 100%;
+            max-height: 500px;
+            object-fit: contain;
+            border-radius: 8px;
+            background: #f9fafb;
+        }
+
+        /* Data Card */
+        .data-card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+
+        .data-card-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .data-card-header h3 {
+            color: var(--text-primary);
+            font-size: 1.25rem;
+        }
+
+        .data-card-body {
+            padding: 1.5rem;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        /* JSON Viewer */
+        .json-viewer {
+            background: #1f2937;
+            color: #10b981;
+            padding: 1.5rem;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.875rem;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        /* Data Fields */
+        .data-section {
+            margin-bottom: 1.5rem;
+        }
+
+        .data-section h4 {
+            color: var(--primary-color);
+            font-size: 1rem;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        .data-field {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 0.75rem;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .data-field:last-child {
+            border-bottom: none;
+        }
+
+        .data-label {
+            color: var(--text-secondary);
+            font-weight: 500;
+            font-size: 0.875rem;
+        }
+
+        .data-value {
+            color: var(--text-primary);
+            font-size: 0.875rem;
+        }
+
+        .data-value.null {
+            color: var(--text-secondary);
+            font-style: italic;
+        }
+
+        /* Progress Bar */
+        .progress-section {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+
+        .progress-steps {
+            display: flex;
+            justify-content: space-between;
+            position: relative;
+            margin-bottom: 2rem;
+        }
+
+        .progress-steps::before {
+            content: '';
+            position: absolute;
+            top: 20px;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: var(--border-color);
+            z-index: 1;
+        }
+
+        .progress-step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            z-index: 2;
+        }
+
+        .progress-step.completed .step-circle {
+            background: var(--success-color);
+            border-color: var(--success-color);
+        }
+
+        .progress-step.active .step-circle {
+            background: var(--primary-color);
+            border-color: var(--primary-color);
+            animation: pulse 2s infinite;
+        }
+
+        .step-circle {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            border: 4px solid var(--border-color);
+            background: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 0.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .progress-step.completed .step-circle {
+            color: white;
+        }
+
+        .step-label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            text-align: center;
+        }
+
+        .progress-step.active .step-label {
+            color: var(--primary-color);
+            font-weight: 600;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                box-shadow: 0 0 0 0 rgba(79, 70, 229, 0.4);
+            }
+            50% {
+                box-shadow: 0 0 0 10px rgba(79, 70, 229, 0);
+            }
+        }
+
+        /* Loading Spinner */
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Confidence Badge */
+        .confidence-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .confidence-high {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .confidence-medium {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .confidence-low {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            background: rgba(255, 255, 255, 0.12);
+            border-radius: 16px;
+            backdrop-filter: blur(8px);
+        }
+
+        .empty-state svg {
+            width: 80px;
+            height: 80px;
+            margin-bottom: 1rem;
+            color: white;
+            opacity: 0.8;
+        }
+
+        .empty-state h3 {
+            color: white;
+            margin-bottom: 0.5rem;
+        }
+
+        .empty-state p {
+            color: #e8e0f8;
+        }
+
+        /* Alert */
+        .alert {
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+
+        .alert-warning {
+            background: #fef3c7;
+            color: #92400e;
+            border-left: 4px solid #f59e0b;
+        }
+
+        .alert-error {
+            background: #fee2e2;
+            color: #991b1b;
+            border-left: 4px solid #ef4444;
+        }
+
+        /* Raw text block */
+        .raw-text-block {
+            background: #f9fafb;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.8rem;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 1rem;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            body {
+                padding: 1rem;
+            }
+            header h1 {
+                font-size: 1.8rem;
+            }
+            .data-field {
+                grid-template-columns: 1fr;
+            }
+            .progress-steps {
+                flex-wrap: wrap;
+                gap: 1rem;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>OCR Сертификатов</h1>
+            <p>Автоматическое распознавание и структурирование данных из дипломов и грамот</p>
+        </header>
+
+        <!-- Upload Section -->
+        <section class="upload-section">
+            <div class="upload-zone" id="uploadZone">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                </svg>
+                <h3>Перетащите файл сюда</h3>
+                <p>или нажмите для выбора файла (JPG, PNG, PDF)</p>
+                <input type="file" id="fileInput" accept="image/jpeg,image/png,image/bmp,image/tiff,image/webp,application/pdf">
+                <button class="btn-upload" style="margin-top: 1rem;" onclick="document.getElementById('fileInput').click()">
+                    <svg width="20" height="20" fill="none" style="margin: 0" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round"   stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+                    </svg>
+                    Выбрать файл
+                </button>
+            </div>
+        </section>
+
+        <!-- Progress Section -->
+        <section class="progress-section" id="progressSection" style="display: none;">
+            <div class="progress-steps">
+                <div class="progress-step completed" id="step1">
+                    <div class="step-circle">✓</div>
+                    <div class="step-label">Загрузка</div>
+                </div>
+                <div class="progress-step active" id="step2">
+                    <div class="step-circle">2</div>
+                    <div class="step-label">OCR Обработка</div>
+                </div>
+                <div class="progress-step" id="step3">
+                    <div class="step-circle">3</div>
+                    <div class="step-label">LLM Структурирование</div>
+                </div>
+                <div class="progress-step" id="step4">
+                    <div class="step-circle">4</div>
+                    <div class="step-label">Готово</div>
+                </div>
+            </div>
+            <div style="text-align: center;" id="progressStatus">
+                <span class="status-badge status-ocr-processing">
+                    <span class="spinner"></span>
+                    Обработка документа...
+                </span>
+            </div>
+        </section>
+
+        <!-- Error Alert -->
+        <div class="alert alert-error" id="errorAlert" style="display: none;">
+            <strong>Ошибка обработки:</strong> <span id="errorMessage"></span>
+        </div>
+
+        <!-- Results Section -->
+        <section class="results-section" id="resultsSection" style="display: none;">
+            <!-- Image Card -->
+            <div class="image-card">
+                <div class="image-card-header">
+                    <h3>Исходный документ</h3>
+                    <span class="status-badge status-completed">Обработано</span>
+                </div>
+                <div class="image-card-body">
+                    <img src="" alt="Сертификат" class="image-preview" id="imagePreview">
+                    <div style="margin-top: 1rem; display: flex; gap: 1rem; flex-wrap: wrap;">
+                        <button class="btn btn-primary" onclick="downloadJSON()">
+                            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                            </svg>
+                            Скачать JSON
+                        </button>
+                        <button class="btn btn-success" onclick="resetApp()">
+                            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                            </svg>
+                            Загрузить ещё
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Data Card -->
+            <div class="data-card">
+                <div class="data-card-header">
+                    <h3>Структурированные данные</h3>
+                    <span class="confidence-badge confidence-high" id="confidenceBadge">Точность: —</span>
+                </div>
+                <div class="data-card-body">
+                    <!-- Personal Data -->
+                    <div class="data-section">
+                        <h4>Личные данные</h4>
+                        <div class="data-field">
+                            <span class="data-label">ФИО</span>
+                            <span class="data-value" id="fullName">—</span>
+                        </div>
+                        <div class="data-field">
+                            <span class="data-label">Учебное заведение</span>
+                            <span class="data-value" id="university">—</span>
+                        </div>
+                        <div class="data-field">
+                            <span class="data-label">Факультет</span>
+                            <span class="data-value" id="faculty">—</span>
+                        </div>
+                        <div class="data-field">
+                            <span class="data-label">Курс</span>
+                            <span class="data-value" id="course">—</span>
+                        </div>
+                        <div class="data-field">
+                            <span class="data-label">Группа</span>
+                            <span class="data-value" id="group">—</span>
+                        </div>
+                    </div>
+
+                    <!-- Document Info -->
+                    <div class="data-section">
+                        <h4>Информация о документе</h4>
+                        <div class="data-field">
+                            <span class="data-label">Тип документа</span>
+                            <span class="data-value" id="docType">—</span>
+                        </div>
+                        <div class="data-field">
+                            <span class="data-label">Номер</span>
+                            <span class="data-value" id="docNumber">—</span>
+                        </div>
+                        <div class="data-field">
+                            <span class="data-label">Дата выдачи</span>
+                            <span class="data-value" id="issueDate">—</span>
+                        </div>
+                        <div class="data-field">
+                            <span class="data-label">Город</span>
+                            <span class="data-value" id="city">—</span>
+                        </div>
+                    </div>
+
+                    <!-- Event Info -->
+                    <div class="data-section">
+                        <h4>Мероприятие</h4>
+                        <div class="data-field">
+                            <span class="data-label">Название</span>
+                            <span class="data-value" id="eventName">—</span>
+                        </div>
+                        <div class="data-field">
+                            <span class="data-label">Тип</span>
+                            <span class="data-value" id="eventType">—</span>
+                        </div>
+                        <div class="data-field">
+                            <span class="data-label">Организатор</span>
+                            <span class="data-value" id="primaryOrg">—</span>
+                        </div>
+                    </div>
+
+                    <!-- Metadata -->
+                    <div class="data-section">
+                        <h4>Метаданные</h4>
+                        <div class="data-field">
+                            <span class="data-label">Язык документа</span>
+                            <span class="data-value" id="language">—</span>
+                        </div>
+                        <div class="data-field">
+                            <span class="data-label">Качество OCR</span>
+                            <span class="data-value" id="ocrQuality">—</span>
+                        </div>
+                        <div class="data-field">
+                            <span class="data-label">Требует проверки</span>
+                            <span class="data-value" id="needsReview">—</span>
+                        </div>
+                    </div>
+
+                    <!-- Raw Text -->
+                    <div class="data-section">
+                        <h4>Распознанный текст</h4>
+                        <div class="raw-text-block" id="rawText">—</div>
+                    </div>
+
+                    <!-- JSON Viewer -->
+                    <div class="data-section">
+                        <h4>Raw JSON</h4>
+                        <div class="json-viewer" id="jsonViewer">—</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Empty State -->
+        <div class="empty-state" id="emptyState">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+            </svg>
+            <h3>Нет данных для отображения</h3>
+            <p>Загрузите изображение сертификата для начала обработки</p>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = ''; // relative — nginx проксирует /api/ на backend
+
+        let currentTaskId = null;
+        let currentFile = null;
+        let pollInterval = null;
+        let resultData = null;
+
+        // Drag & Drop
+        const uploadZone = document.getElementById('uploadZone');
+        const fileInput = document.getElementById('fileInput');
+
+        uploadZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadZone.classList.add('dragover');
+        });
+
+        uploadZone.addEventListener('dragleave', () => {
+            uploadZone.classList.remove('dragover');
+        });
+
+        uploadZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadZone.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFile(e.target.files[0]);
+            }
+        });
+
+        function handleFile(file) {
+            currentFile = file;
+            uploadFile(file);
+        }
+
+        async function uploadFile(file) {
+            // Reset UI
+            document.getElementById('errorAlert').style.display = 'none';
+            document.getElementById('resultsSection').style.display = 'none';
+            document.getElementById('emptyState').style.display = 'none';
+            document.getElementById('progressSection').style.display = 'block';
+            resetProgressSteps();
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch(`${API_BASE}/api/certificates`, {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'Ошибка загрузки файла');
+                }
+
+                const data = await response.json();
+                currentTaskId = data.id;
+
+                // Show image preview
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    document.getElementById('imagePreview').src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+
+                // Start polling
+                startPolling(currentTaskId);
+            } catch (error) {
+                showError(error.message);
+            }
+        }
+
+        function startPolling(taskId) {
+            if (pollInterval) clearInterval(pollInterval);
+
+            pollInterval = setInterval(async () => {
+                try {
+                    const response = await fetch(`${API_BASE}/api/certificates/${taskId}`);
+
+                    if (!response.ok) {
+                        throw new Error('Не удалось получить статус задачи');
+                    }
+
+                    const data = await response.json();
+                    updateProgress(data.status);
+
+                    if (data.status === 'completed') {
+                        clearInterval(pollInterval);
+                        pollInterval = null;
+                        showResults(data);
+                    } else if (data.status === 'error' || data.status === 'ocr_error') {
+                        clearInterval(pollInterval);
+                        pollInterval = null;
+                        showError(data.error_message || 'Произошла ошибка при обработке');
+                    }
+                    // else: continue polling
+                } catch (error) {
+                    console.error('Polling error:', error);
+                    clearInterval(pollInterval);
+                    pollInterval = null;
+                    showError('Ошибка связи с сервером');
+                }
+            }, 2000);
+        }
+
+        function updateProgress(status) {
+            // Маппинг статусов на активный шаг (1-based)
+            // Шаг 1 — Загрузка, Шаг 2 — OCR, Шаг 3 — LLM, Шаг 4 — Готово
+            const statusMap = {
+                'pending':          { active: 2, label: 'Отправка файла...' },
+                'ocr_processing':   { active: 2, label: 'OCR обработка...' },
+                'ocr_completed':    { active: 3, label: 'Отправка в LLM...' },
+                'llm_processing':   { active: 3, label: 'LLM структурирование...' },
+                'completed':        { active: 4, label: 'Готово!' },
+                'error':            { active: 0, label: 'Ошибка' },
+                'ocr_error':        { active: 0, label: 'Ошибка OCR' },
+            };
+
+            const config = statusMap[status];
+            if (!config) return;
+
+            if (status === 'completed') {
+                setAllCompleted();
+                return;
+            }
+
+            if (status === 'error' || status === 'ocr_error') {
+                setErrorSteps();
+                return;
+            }
+
+            setProgressToStep(config.active, config.label);
+        }
+
+        function resetProgressSteps() {
+            ['step1', 'step2', 'step3', 'step4'].forEach((id, i) => {
+                const step = document.getElementById(id);
+                step.classList.remove('completed', 'active');
+                step.querySelector('.step-circle').textContent = i + 1;
+                step.querySelector('.step-label').textContent = ['Загрузка', 'OCR Обработка', 'LLM Структурирование', 'Готово'][i];
+            });
+            // Шаг 1 — completed (файл загружен)
+            const step1 = document.getElementById('step1');
+            step1.classList.add('completed');
+            step1.querySelector('.step-circle').textContent = '✓';
+            // Шаг 2 — active
+            const step2 = document.getElementById('step2');
+            step2.classList.add('active');
+        }
+
+        function setProgressToStep(activeStep, label) {
+            const steps = ['step1', 'step2', 'step3', 'step4'];
+            steps.forEach((id, i) => {
+                const step = document.getElementById(id);
+                const stepNum = i + 1;
+                step.classList.remove('completed', 'active');
+                if (stepNum < activeStep) {
+                    step.classList.add('completed');
+                    step.querySelector('.step-circle').textContent = '✓';
+                } else if (stepNum === activeStep) {
+                    step.classList.add('active');
+                    step.querySelector('.step-circle').textContent = stepNum;
+                } else {
+                    step.querySelector('.step-circle').textContent = stepNum;
+                }
+            });
+
+            // Обновить текст статуса
+            const progressStatus = document.getElementById('progressStatus');
+            progressStatus.innerHTML = `<span class="status-badge status-ocr-processing">
+                <span class="spinner"></span>
+                ${label}
+            </span>`;
+        }
+
+        function setAllCompleted() {
+            ['step1', 'step2', 'step3', 'step4'].forEach((id) => {
+                const step = document.getElementById(id);
+                step.classList.add('completed');
+                step.classList.remove('active');
+                step.querySelector('.step-circle').textContent = '✓';
+            });
+            const progressStatus = document.getElementById('progressStatus');
+            progressStatus.innerHTML = `<span class="status-badge status-completed">
+                ✓ Обработка завершена
+            </span>`;
+        }
+
+        function setErrorSteps() {
+            ['step1', 'step2', 'step3', 'step4'].forEach((id, i) => {
+                const step = document.getElementById(id);
+                step.classList.remove('completed', 'active');
+                step.querySelector('.step-circle').textContent = i + 1;
+            });
+            const progressStatus = document.getElementById('progressStatus');
+            progressStatus.innerHTML = `<span class="status-badge status-error">
+                ✗ Ошибка обработки
+            </span>`;
+        }
+
+        function showResults(data) {
+            document.getElementById('progressSection').style.display = 'none';
+            document.getElementById('resultsSection').style.display = 'grid';
+
+            resultData = data;
+            const sd = data.structured_data || {};
+
+            // Personal data
+            const pd = sd.personal_data || {};
+            document.getElementById('fullName').textContent = pd.full_name || '—';
+            document.getElementById('university').textContent = pd.university || '—';
+            document.getElementById('faculty').textContent = pd.faculty || '—';
+            document.getElementById('course').textContent = pd.course || '—';
+            document.getElementById('group').textContent = pd.group || '—';
+
+            // Document info
+            const di = sd.document_info || {};
+            document.getElementById('docType').textContent = di.doc_type || '—';
+            document.getElementById('docNumber').textContent = di.doc_number || '—';
+            document.getElementById('issueDate').textContent = di.issue_date || '—';
+            document.getElementById('city').textContent = di.city || '—';
+
+            // Event info
+            const ei = sd.event_info || {};
+            document.getElementById('eventName').textContent = ei.event_name || '—';
+            document.getElementById('eventType').textContent = ei.event_type || '—';
+
+            // Organization
+            const org = sd.organization || {};
+            document.getElementById('primaryOrg').textContent = org.primary_org || '—';
+
+            // Metadata
+            const meta = sd.metadata || {};
+            document.getElementById('language').textContent = di.language || '—';
+            document.getElementById('ocrQuality').textContent = meta.ocr_quality || '—';
+            document.getElementById('needsReview').textContent = meta.needs_review ? 'Да' : 'Нет';
+
+            // Confidence badge
+            const confidence = meta.confidence;
+            const badge = document.getElementById('confidenceBadge');
+            if (confidence !== null && confidence !== undefined) {
+                const pct = Math.round(confidence * 100) + '%';
+                badge.textContent = `Точность: ${pct}`;
+                badge.className = 'confidence-badge ' + (
+                    confidence >= 0.8 ? 'confidence-high' :
+                    confidence >= 0.5 ? 'confidence-medium' : 'confidence-low'
+                );
+            }
+
+            // Raw text
+            document.getElementById('rawText').textContent = data.raw_text || '—';
+
+            // JSON viewer
+            document.getElementById('jsonViewer').textContent = JSON.stringify(sd, null, 2);
+        }
+
+        function showError(message) {
+            document.getElementById('progressSection').style.display = 'none';
+            document.getElementById('errorAlert').style.display = 'block';
+            document.getElementById('errorMessage').textContent = message;
+            document.getElementById('emptyState').style.display = 'none';
+        }
+
+        function resetApp() {
+            if (pollInterval) {
+                clearInterval(pollInterval);
+                pollInterval = null;
+            }
+            currentTaskId = null;
+            currentFile = null;
+            resultData = null;
+
+            document.getElementById('progressSection').style.display = 'none';
+            document.getElementById('resultsSection').style.display = 'none';
+            document.getElementById('errorAlert').style.display = 'none';
+            document.getElementById('emptyState').style.display = 'block';
+            document.getElementById('fileInput').value = '';
+            resetProgressSteps();
+        }
+
+        function downloadJSON() {
+            if (!resultData) return;
+            const blob = new Blob([JSON.stringify(resultData.structured_data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `certificate_${currentTaskId}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+    </script>
+</body>
+</html>
