@@ -221,12 +221,12 @@ async def extract_json_from_response(text: str) -> dict:
 async def call_ollama(raw_text: str) -> dict:
     """Вызов Ollama API для извлечения структурированных данных."""
     url = f"http://{config.ollama.host}:{config.ollama.port}/api/chat"
-
+    
     messages = [
         {"role": "system", "content": SYSTEM_PROMPT},
         {"role": "user", "content": f"Извлеки данные из текста:\n\n{raw_text}"},
     ]
-
+    
     payload = {
         "model": config.ollama.model,
         "messages": messages,
@@ -235,9 +235,9 @@ async def call_ollama(raw_text: str) -> dict:
             "temperature": config.ollama.temperature,
         }
     }
-
+    
     logger.info(f"🤖 Calling Ollama API at {url} with model {config.ollama.model}")
-
+    
     async with httpx.AsyncClient(timeout=config.ollama.timeout) as client:
         response = await client.post(url, json=payload)
         response.raise_for_status()

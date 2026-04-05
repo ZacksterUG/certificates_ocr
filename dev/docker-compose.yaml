@@ -1,6 +1,118 @@
 version: '3.8'
 
 services:
+  # Backend API
+  backend:
+    build:
+      context: ./app
+      dockerfile: Dockerfile
+    container_name: backend
+    ports:
+      - "8000:8000"
+    environment:
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_NAME: certificates
+      DB_USER: postgres
+      DB_PASS: postgres
+      RABBIT_HOST: rabbitmq
+      RABBIT_PORT: "5672"
+      RABBIT_USER: guest
+      RABBIT_PASS: guest
+      OCR_QUEUE_NAME: text_recognition
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - app_network
+
+  # OCR Service
+  ocr_service:
+    build:
+      context: ./ocr_service
+      dockerfile: Dockerfile
+    container_name: ocr_service
+    environment:
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_NAME: certificates
+      DB_USER: postgres
+      DB_PASS: postgres
+      RABBIT_HOST: rabbitmq
+      RABBIT_PORT: "5672"
+      RABBIT_USER: guest
+      RABBIT_PASS: guest
+      OCR_QUEUE_NAME: text_recognition
+      LLM_QUEUE_NAME: llm_json_builder
+      HEARTBEAT_SECONDS: "600"
+      MAX_NEW_TOKENS: "512"
+      MODEL_PATH: PaddlePaddle/PaddleOCR-VL-1.5
+      PROMPT_OCR: "OCR:"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    networks:
+      - app_network
+
+  # Ollama Server
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+      - ./id_ed25519:/root/.ssh/id_ed25519:ro
+      - ./id_ed25519.pub:/root/.ssh/id_ed25519.pub:ro
+    environment:
+      OLLAMA_HOST: "0.0.0.0"
+      OLLAMA_KEEP_ALIVE: "-1"
+    networks:
+      - app_network
+
+  # LLM Service
+  llm_service:
+    build:
+      context: ./llm_service
+      dockerfile: Dockerfile
+    container_name: llm_service
+    environment:
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_NAME: certificates
+      DB_USER: postgres
+      DB_PASS: postgres
+      RABBIT_HOST: rabbitmq
+      RABBIT_PORT: "5672"
+      RABBIT_USER: guest
+      RABBIT_PASS: guest
+      LLM_QUEUE_NAME: llm_json_builder
+      OLLAMA_HOST: ollama
+      OLLAMA_PORT: "11434"
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3-coder:480b-cloud}
+     # OLLAMA_API_KEY: ${OLLAMA_API_KEY}
+      TEMPERATURE: "0.1"
+      HEARTBEAT_SECONDS: "600"
+      REQUEST_TIMEOUT: "120"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - app_network
+
   # Liquibase migrations
   migrations:
     build:
@@ -17,8 +129,8 @@ services:
     image: rabbitmq:3-management
     container_name: rabbitmq
     ports:
-      - "5672:5672"   # AMQP
-      - "15672:15672" # Management UI
+      - "5672:5672"
+      - "15672:15672"
     environment:
       RABBITMQ_DEFAULT_USER: guest
       RABBITMQ_DEFAULT_PASS: guest
@@ -54,6 +166,7 @@ services:
 volumes:
   rabbitmq_data:
   postgres_data:
+  ollama_data:
   ocr_uploads:
 
 networks:
